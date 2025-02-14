@@ -1,22 +1,11 @@
 import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default async function Home() {
+export default async function DashboardPage() {
   const session = await getSession();
-
-  if (!session) {
-    return (
-      <div className="text-center py-20">
-        <h1 className="text-4xl font-bold mb-6">Performance Management System</h1>
-        <div className="space-y-4">
-          <Button asChild>
-            <Link href="/login">Get Started</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (!session) redirect('/login');
 
   return (
     <div className="p-6">
@@ -44,10 +33,10 @@ export default async function Home() {
           <div className="border p-6 rounded-lg">
             <h2 className="text-xl font-semibold mb-4">Admin Dashboard</h2>
             <div className="space-y-4">
-              <Button asChild>
+              <Button asChild className="w-full">
                 <Link href="/admin/users">Manage Users</Link>
               </Button>
-              <Button asChild>
+              <Button asChild className="w-full">
                 <Link href="/admin/review-cycles">Manage Review Cycles</Link>
               </Button>
             </div>
@@ -56,4 +45,4 @@ export default async function Home() {
       </div>
     </div>
   );
-}
+} 
