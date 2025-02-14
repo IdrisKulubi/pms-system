@@ -1,8 +1,8 @@
 'use server';
 import  db  from '@/db/drizzle';
-import { kpis, progressTracking } from '@/db/schema';
+import { kpis, ceoOverrides } from '@/db/schema';
 import { getSession } from '@/lib/auth';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 
 
@@ -19,7 +19,7 @@ export async function createKPI(prevState: any, formData: FormData) {
   });
 
   if (!activeCycle) {
-    return { error: 'No active review cycle' };
+    return { error: 'No active review cycle - contact your administrator' };  
   }
 
   await db.insert(kpis).values ({
@@ -43,15 +43,61 @@ export async function getEmployeeKPIs() {
     where: eq(kpis.employeeId, session.id),
     with: {
       pillar: true,
-      ppsGoals: {
-        with: {
-          progressTracking: {
-            where: eq(progressTracking.employeeId, session.id)
-          }
-        }
-      },
       managerReviews: true,
       ceoOverrides: true
     },
   });
+}
+
+export async function getAllKPIs() {
+  const session = await getSession();
+  if (!session || session.role !== 'super_admin') {
+    throw new Error('Unauthorized');
+  }
+
+  const allKPIs = await db.query.kpis.findMany({
+    with: {
+      employee: true,
+      pillar: true,
+      managerReviews: {
+        with: {
+          manager: true
+        }
+      },
+      ceoOverrides: {
+        with: {
+          superAdmin: true
+        }
+      }
+    },
+    orderBy: [desc(kpis.createdAt)]
+  });
+
+  return allKPIs;
+}
+
+export async function addCEOOverride({
+  kpiId,
+  overrideRating,
+  overrideComment
+}: {
+  kpiId: number;
+  overrideRating: number;
+  overrideComment: string;
+}) {
+  const session = await getSession();
+  if (!session || session.role !== 'super_admin') {
+    throw new Error('Unauthorized');
+  }
+
+  const [newOverride] = await db.insert(ceoOverrides)
+    .values({
+      kpiId,
+      superAdminId: session.id,
+      overrideRating,
+      overrideComment
+    })
+    .returning();
+
+  return newOverride;
 } 

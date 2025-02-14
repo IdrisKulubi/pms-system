@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { encrypt } from './session';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function signUp(email: string, password: string) {
   const existingUser = await db.query.users.findFirst({
@@ -92,6 +93,19 @@ export async function logout() {
   (await cookies()).delete('user_id');
   redirect('/login');
 }
+
+export async function authMiddleware(request: NextRequest) {
+  const { nextUrl } = request;
+  const isLoggedIn = await getSession();
+
+  if (!isLoggedIn && nextUrl.pathname !== '/login') {
+    return NextResponse.redirect(new URL('/login', nextUrl));
+  }
+
+  return NextResponse.next();
+}
+
+
 
 export async function clearSession() {
   const cookieStore = cookies();

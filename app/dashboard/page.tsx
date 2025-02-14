@@ -13,6 +13,8 @@ import { ShieldAlert } from "lucide-react";
 import { Feedback } from "@/lib/pms-framework";
 import { headers } from 'next/headers';
 import { cache } from 'react';
+import { logout } from "@/lib/auth";
+import { LogoutButton } from "@/components/shared/logout-button";
 
 // Cache the data fetching functions
 const getFrameworkData = cache(async (sessionId: string) => {
@@ -92,6 +94,7 @@ export default async function DashboardPage() {
             <Button asChild>
               <Link href="/dashboard/kpi/new">+ New KPI Submission</Link>
             </Button>
+            <LogoutButton />
           </div>
         </div>
 
@@ -198,6 +201,12 @@ export default async function DashboardPage() {
             }} />
           </div>
         </section>
+
+        {session.role === 'super_admin' && (
+          <Link href="/admin/review-cycles" className="text-sm font-medium hover:underline">
+            Manage Review Cycles
+          </Link>
+        )}
       </div>
     );
   } catch (error) {

@@ -4,19 +4,21 @@ import {
   text,
   integer,
   timestamp,
-  date,
+  
   index,
   boolean,
   uniqueIndex,
   decimal,
+  varchar,
 } from "drizzle-orm/pg-core";
+import { relations } from 'drizzle-orm';
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
   password: text("password").notNull(),
-  role: text("role", { enum: ['employee', 'manager', 'super_admin'] }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  role: varchar('role', { length: 50 }).$type<'super_admin' | 'manager' | 'employee'>().notNull(),
   department: text("department"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
@@ -25,15 +27,24 @@ export const users = pgTable("users", {
   roleIndex: uniqueIndex("role_idx").on(users.role)
 }));
 
+// Define relations for users
+export const usersRelations = relations(users, ({ many }) => ({
+  feedback: many(feedback),
+  givenFeedback: many(feedback, { relationName: 'adminFeedback' }),
+}));
+
 export const reviewCycles = pgTable("review_cycles", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  startDate: date("start_date").notNull(),
-  endDate: date("end_date").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
   isActive: boolean("is_active").default(false).notNull(),
-  isPmsActive: boolean('is_pms_active').default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull()
-});
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  startDateIdx: index("review_cycles_start_date_idx").on(table.startDate),
+  endDateIdx: index("review_cycles_end_date_idx").on(table.endDate),
+}));
 
 export const pillars = pgTable('pillars', {
   id: serial('id').primaryKey(),
@@ -110,3 +121,85 @@ export const ceoOverrides = pgTable("ceo_overrides", {
 }, (table) => ({
   kpiIdx: index("ceo_overrides_kpi_id_idx").on(table.kpiId),
 }));
+
+export const feedback = pgTable('feedback', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  adminId: integer('admin_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  comment: text('comment').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('feedback_user_id_idx').on(table.userId),
+  adminIdIdx: index('feedback_admin_id_idx').on(table.adminId),
+}));
+
+// Define relations for feedback
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  user: one(users, {
+    fields: [feedback.userId],
+    references: [users.id],
+  }),
+  admin: one(users, {
+    fields: [feedback.adminId],
+    references: [users.id],
+    relationName: 'adminFeedback',
+  }),
+}));
+
+// Update the User type to include feedback relations
+export type User = typeof users.$inferSelect & {
+  feedback?: (typeof feedback.$inferSelect)[];
+  givenFeedback?: (typeof feedback.$inferSelect)[];
+};
+
+export type Feedback = typeof feedback.$inferSelect & {
+  user?: User;
+  admin?: User;
+};
+
+export const kpisRelations = relations(kpis, ({ one, many }) => ({
+  employee: one(users, {
+    fields: [kpis.employeeId],
+    references: [users.id],
+  }),
+  managerReviews: many(managerReviews),
+  ceoOverrides: many(ceoOverrides),
+  pillar: one(pillars, {
+    fields: [kpis.pillarId],
+    references: [pillars.id],
+  }),
+}));
+
+export const managerReviewsRelations = relations(managerReviews, ({ one }) => ({
+  kpi: one(kpis, {
+    fields: [managerReviews.kpiId],
+    references: [kpis.id],
+  }),
+  manager: one(users, {
+    fields: [managerReviews.managerId],
+    references: [users.id],
+  }),
+}));
+
+export const ceoOverridesRelations = relations(ceoOverrides, ({ one }) => ({
+  kpi: one(kpis, {
+    fields: [ceoOverrides.kpiId],
+    references: [kpis.id],
+  }),
+  superAdmin: one(users, {
+    fields: [ceoOverrides.superAdminId],
+    references: [users.id],
+  }),
+}));
+
+// Update the KPI type to include relations
+export type KPI = typeof kpis.$inferSelect & {
+  employee?: typeof users.$inferSelect;
+  managerReviews?: (typeof managerReviews.$inferSelect & {
+    manager?: typeof users.$inferSelect;
+  })[];
+  ceoOverrides?: (typeof ceoOverrides.$inferSelect & {
+    superAdmin?: typeof users.$inferSelect;
+  })[];
+};

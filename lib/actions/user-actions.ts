@@ -1,7 +1,7 @@
 'use server';
 import  db  from '@/db/drizzle';
-import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { users, feedback } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/auth';
 import { encrypt } from '@/lib/session';
 import { isValidEmail } from '@/lib/validators';
@@ -61,4 +61,50 @@ export async function deleteUser(userId: number) {
   }
 
   await db.delete(users).where(eq(users.id, userId));
+}
+
+export async function getAllUsers() {
+  const session = await getSession();
+  if (!session || session.role !== 'super_admin') {
+    throw new Error('Unauthorized');
+  }
+
+  const allUsers = await db.query.users.findMany({
+    with: {
+      feedback: {
+        with: {
+          admin: true
+        }
+      }
+    },
+    orderBy: [desc(users.createdAt)]
+  });
+
+  return allUsers.map(user => ({
+    ...user,
+    password: undefined
+  }));
+}
+
+export async function addFeedbackToUser({
+  userId,
+  comment
+}: {
+  userId: number;
+  comment: string;
+}) {
+  const session = await getSession();
+  if (!session || session.role !== 'super_admin') {
+    throw new Error('Unauthorized');
+  }
+
+  const [newFeedback] = await db.insert(feedback)
+    .values({
+      userId,
+      adminId: session.id,
+      comment,
+    })
+    .returning();
+
+  return newFeedback;
 } 

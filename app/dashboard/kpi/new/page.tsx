@@ -64,6 +64,7 @@ export default function NewKPIPage() {
     try {
       const result = await createKPI(prevState, formData);
       if (result.error) {
+        
         toast({
           variant: "destructive",
           title: "Error",
@@ -144,6 +145,55 @@ export default function NewKPIPage() {
             <CardTitle>Select Performance Area</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 dark:bg-gray-800/50">
+            {/* Title Input */}
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input 
+                name="title" 
+                placeholder="Enter a descriptive title for this KPI progress"
+                required
+              />
+              <p className="text-sm text-muted-foreground">
+                Provide a clear, concise title that describes this progress entry
+              </p>
+            </div>
+
+            {/* Description Input */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea 
+                name="description" 
+                placeholder="Provide a detailed description of this KPI progress entry..."
+                rows={3}
+                required
+              />
+              <p className="text-sm text-muted-foreground">
+                Add context and details about what this KPI progress entry represents
+              </p>
+            </div>
+
+            {/* Target Input */}
+            <div className="space-y-2">
+              <Label htmlFor="target">Target</Label>
+              <Textarea 
+                name="target" 
+                placeholder="What is the specific target or goal you aim to achieve?"
+                rows={2}
+                required
+              />
+              <p className="text-sm text-muted-foreground">
+                Define the measurable outcome or deliverable you plan to achieve
+              </p>
+            </div>
+
+            {/* Weight will be automatically set based on the selected KPI */}
+            <input type="hidden" name="weight" value={
+              availableKPIs.find(kpi => kpi.name === selectedKPI)?.weight.toString() || "0.00"
+            } />
+
+            {/* Name will be set same as title for now */}
+            <input type="hidden" name="name" value={selectedKPI} />
+
             {/* Pillar Selection */}
             <div className="space-y-2">
               <Label htmlFor="pillar">Performance Pillar</Label>
@@ -152,7 +202,7 @@ export default function NewKPIPage() {
                 value={selectedPillar} 
                 onValueChange={(value) => {
                   setSelectedPillar(value);
-                  setSelectedKPI(''); // Reset KPI when pillar changes
+                  setSelectedKPI(''); 
                 }}
               >
                 <SelectTrigger>

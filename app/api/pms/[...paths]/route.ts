@@ -20,12 +20,15 @@ export async function GET(
   request: Request,
   context: { params: { paths: string[] } }
 ) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
+  const session = await getSession();
+  if (!session) {
+    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
+  try {
     // Properly await and destructure params
     const paths = await Promise.resolve(context.params.paths);
     const path = paths[0];
