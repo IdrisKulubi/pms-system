@@ -1,0 +1,1 @@
+ALTER TABLE "progress_tracking" ADD COLUMN "weight" numeric(5, 2) NOT NULL;

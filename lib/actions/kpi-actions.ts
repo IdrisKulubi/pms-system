@@ -1,9 +1,12 @@
 'use server';
 import  db  from '@/db/drizzle';
-import { kpis } from '@/db/schema';
+import { kpis, progressTracking } from '@/db/schema';
 import { getSession } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
 
+
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createKPI(prevState: any, formData: FormData) {
   const session = await getSession();
   if (!session || session.role !== 'employee') {
@@ -19,12 +22,14 @@ export async function createKPI(prevState: any, formData: FormData) {
     return { error: 'No active review cycle' };
   }
 
-  await db.insert(kpis).values({
-    title: title.toString(),
-    description: description.toString(),
-    target: target.toString(),
+  await db.insert(kpis).values ({
+    title: title.toString() || '',
+    description: description.toString() || '',
+    target: target.toString() || '',
     employeeId: session.id,
     reviewCycleId: activeCycle.id,
+    weight: "0.00",
+    name: title.toString() || '',
   });
 
   return { success: true };
@@ -35,10 +40,18 @@ export async function getEmployeeKPIs() {
   if (!session) throw new Error('Unauthorized');
 
   return db.query.kpis.findMany({
-    where: (kpi) => eq(kpi.employeeId, session.id),
+    where: eq(kpis.employeeId, session.id),
     with: {
+      pillar: true,
+      ppsGoals: {
+        with: {
+          progressTracking: {
+            where: eq(progressTracking.employeeId, session.id)
+          }
+        }
+      },
       managerReviews: true,
-      ceoOverrides: true,
+      ceoOverrides: true
     },
   });
 } 

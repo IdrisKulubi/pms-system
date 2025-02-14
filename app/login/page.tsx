@@ -1,14 +1,23 @@
 'use client';
 
-import { useActionState } from 'react';
 import { login } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useRouter } from 'next/navigation';
+import { useActionState, useEffect } from 'react';
 
 export default function LoginPage() {
   const [state, formAction] = useActionState(login, { error: null });
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state?.error === null) {
+      router.push('/dashboard');
+      router.refresh();
+    }
+  }, [state, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted">
@@ -26,7 +35,6 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="name@company.com"
                 required
                 className="w-full"
               />
@@ -47,11 +55,7 @@ export default function LoginPage() {
 
             {state?.error && (
               <Alert variant="destructive">
-                <AlertDescription>
-                  {state.error === 'password-change-required'
-                    ? 'You must change your default password'
-                    : state.error}
-                </AlertDescription>
+                <AlertDescription>{state.error}</AlertDescription>
               </Alert>
             )}
 

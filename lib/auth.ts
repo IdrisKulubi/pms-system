@@ -39,27 +39,24 @@ export async function login(
       where: eq(users.email, email),
     });
 
-    if (!user) {
+    if (!user || user.password !== password) {
       return { error: 'Invalid credentials' };
     }
 
-    if (user.password !== password) {
-      return { error: 'Invalid credentials' };
-    }
-
-    // Set user session
-    (await cookies()).set('user_id', user.id.toString(), {
+    // Set user session cookie
+    (await
+      // Set user session cookie
+      cookies()).set('user_id', user.id.toString(), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
     });
 
-    // Redirect to dashboard
-    redirect('/dashboard');
+    return { error: null };
   } catch (error) {
-    console.error(error);
-    return { error: 'An error occurred' };
+    console.error('Login error:', error);
+    return { error: 'An error occurred during login' };
   }
 }
 

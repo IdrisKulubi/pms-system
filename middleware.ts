@@ -9,31 +9,35 @@ const protectedRoutes = ['/dashboard', '/admin', '/manager'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Check if user is authenticated
   const isAuthenticated = request.cookies.has('user_id');
+  
+  // Skip middleware for static files and API routes
+  if (
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
 
-  // Redirect authenticated users away from public routes
-  if (publicRoutes.some(route => pathname.startsWith(route)) && isAuthenticated) {
+  // Redirect authenticated users trying to access public routes
+  if (isAuthenticated && publicRoutes.includes(pathname)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Redirect unauthenticated users to login
-  if (protectedRoutes.some(route => pathname.startsWith(route)) && !isAuthenticated) {
+  // Redirect unauthenticated users trying to access protected routes
+  if (!isAuthenticated && !publicRoutes.includes(pathname)) {
     return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Role-based redirects
+  if (pathname.startsWith('/admin') && session?.role !== 'super_admin') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }; 

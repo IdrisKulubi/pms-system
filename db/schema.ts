@@ -8,6 +8,7 @@ import {
   index,
   boolean,
   uniqueIndex,
+  decimal,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -30,7 +31,16 @@ export const reviewCycles = pgTable("review_cycles", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   isActive: boolean("is_active").default(false).notNull(),
+  isPmsActive: boolean('is_pms_active').default(false),
   createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const pillars = pgTable('pillars', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  weight: decimal('weight', { precision: 5, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 export const kpis = pgTable("kpis", {
@@ -43,11 +53,38 @@ export const kpis = pgTable("kpis", {
   selfRating: integer("self_rating"),
   selfComment: text("self_comment"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  name: text('name').notNull(),
+  pillarId: integer('pillar_id').references(() => pillars.id),
+  weight: decimal('weight', { precision: 5, scale: 2 }).notNull(),
 }, (table) => ({
   employeeIdx: index("kpis_employee_id_idx").on(table.employeeId),
   reviewCycleIdx: index("kpis_review_cycle_id_idx").on(table.reviewCycleId),
 }));
+
+export const ppsGoals = pgTable('pps_goals', {
+  id: serial('id').primaryKey(),
+  description: text('description').notNull(),
+  verification: text('verification').notNull(),
+  weight: decimal('weight', { precision: 5, scale: 2 }).notNull(),
+  kpiId: integer('kpi_id').references(() => kpis.id),
+  reviewCycleId: integer('review_cycle_id').references(() => reviewCycles.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const progressTracking = pgTable('progress_tracking', {
+  id: serial('id').primaryKey(),
+  weight: decimal('weight', { precision: 5, scale: 2 }).notNull(),
+  goalId: integer('goal_id').references(() => ppsGoals.id),
+  employeeId: integer('employee_id').references(() => users.id),
+  currentProgress: decimal('current_progress', { precision: 5, scale: 2 }).default('0.00'),
+  target: decimal('target', { precision: 5, scale: 2 }).notNull(),
+  evidence: text('evidence'),
+  status: text('status').$type<'pending'|'approved'|'rejected'>().default('pending'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
 export const managerReviews = pgTable("manager_reviews", {
   id: serial("id").primaryKey(),
