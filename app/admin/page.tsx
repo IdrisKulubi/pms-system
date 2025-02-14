@@ -8,9 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAllUsers, addFeedbackToUser } from "@/lib/actions/user-actions";
-import { getAllKPIs, addCEOOverride } from "@/lib/actions/kpi-actions";
+import { getAllKPIs, addCEOOverride, addKPIFeedback } from "@/lib/actions/kpi-actions";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Search, MessageSquare, Star } from "lucide-react";
+import { Loader2, Search, MessageSquare,  } from "lucide-react";
 import { LogoutButton } from '@/components/shared/logout-button';
 
 interface User {
@@ -62,6 +62,14 @@ interface KPI {
   }[];
 }
 
+interface KPIFeedback {
+  id: number;
+  kpiId: number;
+  comment: string;
+  rating: number;
+  createdAt: Date;
+}
+
 export default function AdminDashboard() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
@@ -73,6 +81,10 @@ export default function AdminDashboard() {
   const [selectedKPI, setSelectedKPI] = useState<KPI | null>(null);
   const [overrideRating, setOverrideRating] = useState<number>(0);
   const [overrideComment, setOverrideComment] = useState('');
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [selectedKPIForFeedback, setSelectedKPIForFeedback] = useState<KPI | null>(null);
+  const [kpiFeedback, setKPIFeedback] = useState('');
+  const [kpiRating, setKPIRating] = useState<number>(0);
 
   useEffect(() => {
     loadUsers();
@@ -145,6 +157,41 @@ export default function AdminDashboard() {
         variant: "destructive",
         title: "Error",
         description: error instanceof Error ? error.message : 'Failed to add override'
+      });
+    }
+  };
+
+  const handleKPIFeedback = async () => {
+    if (!selectedKPIForFeedback || !kpiFeedback.trim() || !kpiRating) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please provide both rating and feedback"
+      });
+      return;
+    }
+
+    try {
+      await addKPIFeedback({
+        kpiId: selectedKPIForFeedback.id,
+        comment: kpiFeedback,
+        rating: kpiRating
+      });
+
+      toast({
+        title: "Success",
+        description: "Feedback added successfully"
+      });
+
+      setFeedbackDialogOpen(false);
+      setKPIFeedback('');
+      setKPIRating(0);
+      await loadKPIs();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to add feedback'
       });
     }
   };
@@ -267,57 +314,15 @@ export default function AdminDashboard() {
                             <strong>Weight:</strong> {kpi.weight}%
                           </p>
                         </div>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="outline"
-                              onClick={() => setSelectedKPI(kpi)}
-                            >
-                              <Star className="h-4 w-4 mr-2" />
-                              Add Override
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Add CEO Override for KPI</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <label className="text-sm font-medium">Rating</label>
-                                <Select 
-                                  value={overrideRating.toString()} 
-                                  onValueChange={(value) => setOverrideRating(Number(value))}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select rating" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {[1,2,3,4,5].map(rating => (
-                                      <SelectItem key={rating} value={rating.toString()}>
-                                        {rating}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <label className="text-sm font-medium">Comment</label>
-                                <Textarea
-                                  placeholder="Enter your override comment..."
-                                  value={overrideComment}
-                                  onChange={(e) => setOverrideComment(e.target.value)}
-                                  rows={4}
-                                />
-                              </div>
-                              <Button 
-                                className="w-full" 
-                                onClick={handleAddOverride}
-                              >
-                                Submit Override
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedKPIForFeedback(kpi);
+                            setFeedbackDialogOpen(true);
+                          }}
+                        >
+                          Add Feedback
+                        </Button>
                       </div>
 
                       <div className="space-y-3 mt-4">
@@ -392,6 +397,49 @@ export default function AdminDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add KPI Feedback</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Rating</label>
+              <Select 
+                value={kpiRating.toString()} 
+                onValueChange={(value) => setKPIRating(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select rating" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5].map(rating => (
+                    <SelectItem key={rating} value={rating.toString()}>
+                      {rating}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Feedback</label>
+              <Textarea
+                placeholder="Enter your feedback..."
+                value={kpiFeedback}
+                onChange={(e) => setKPIFeedback(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={handleKPIFeedback}
+            >
+              Submit Feedback
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

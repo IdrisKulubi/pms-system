@@ -12,6 +12,8 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { relations } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
+import db from "./drizzle";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -67,7 +69,7 @@ export const kpis = pgTable("kpis", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   name: text('name').notNull(),
   pillarId: integer('pillar_id').references(() => pillars.id),
-  weight: decimal('weight', { precision: 5, scale: 2 }).notNull(),
+  weight: decimal('weight', { precision: 5, scale: 2 }).notNull().default('0.00'),
 }, (table) => ({
   employeeIdx: index("kpis_employee_id_idx").on(table.employeeId),
   reviewCycleIdx: index("kpis_review_cycle_id_idx").on(table.reviewCycleId),
@@ -203,3 +205,25 @@ export type KPI = typeof kpis.$inferSelect & {
     superAdmin?: typeof users.$inferSelect;
   })[];
 };
+
+// Add a helper function to calculate weights
+export async function calculateKPIWeights(employeeId: number, reviewCycleId: number) {
+  const totalKPIs = await db.query.kpis.findMany({
+    where: and(
+      eq(kpis.employeeId, employeeId),
+      eq(kpis.reviewCycleId, reviewCycleId)
+    )
+  });
+
+  const weightPerKPI = totalKPIs.length > 0 ? (100 / totalKPIs.length).toFixed(2) : '0.00';
+  
+  // Update all KPIs with equal weights
+  await db.update(kpis)
+    .set({ weight: weightPerKPI })
+    .where(and(
+      eq(kpis.employeeId, employeeId),
+      eq(kpis.reviewCycleId, reviewCycleId)
+    ));
+
+  return weightPerKPI;
+}

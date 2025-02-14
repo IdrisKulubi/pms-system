@@ -15,6 +15,7 @@ import { headers } from 'next/headers';
 import { cache } from 'react';
 import { logout } from "@/lib/auth";
 import { LogoutButton } from "@/components/shared/logout-button";
+import { getEmployeeFeedback } from "@/lib/actions/kpi-actions";
 
 // Cache the data fetching functions
 const getFrameworkData = cache(async (sessionId: string) => {
@@ -71,7 +72,7 @@ export default async function DashboardPage() {
 
   try {
     // Fetch data in parallel with proper error handling
-    const [frameworkData, overallProgress] = await Promise.all([
+    const [frameworkData, overallProgress, feedbackData] = await Promise.all([
       getFrameworkData(session.id.toString()).catch(error => {
         console.error('Framework fetch error:', error);
         return { error: 'Failed to load framework data' };
@@ -79,6 +80,10 @@ export default async function DashboardPage() {
       getOverallProgress(session.id.toString()).catch(error => {
         console.error('Progress fetch error:', error);
         return { overallProgress: 0 };
+      }),
+      getEmployeeFeedback().catch(error => {
+        console.error('Feedback fetch error:', error);
+        return { managerFeedback: [], ceoFeedback: [] };
       })
     ]);
 
@@ -186,19 +191,39 @@ export default async function DashboardPage() {
         <section className="space-y-6">
           <h2 className="text-2xl font-bold">Performance Feedback</h2>
           <div className="grid gap-6 md:grid-cols-2 dark:bg-gray-800">
-            <FeedbackCard feedback={{
-              reviewer: "Manager",
-              rating: 4,
-              comment: "Good progress on financial reporting, need more attention to client contracts",
-              approved: true
-            }} />
-            <FeedbackCard feedback={{
-              reviewer: "CEO",
-              rating: 5,
-              comment: "Excellent work on audit process improvements",
-              overrideComment: "Approved with exceptional rating",
-              approved: true
-            }} />
+            {feedbackData.managerFeedback.map((feedback) => (
+              <FeedbackCard
+                key={feedback.id}
+                feedback={{
+                  reviewer: feedback.manager?.name || "Manager",
+                  rating: feedback.rating || 0,
+                  comment: feedback.comment || "",
+                  approved: true,
+                  createdAt: feedback.createdAt
+                }}
+              />
+            ))}
+            
+            {feedbackData.ceoFeedback.map((feedback) => (
+              <FeedbackCard
+                key={feedback.id}
+                feedback={{
+                  reviewer: feedback.superAdmin?.name || "CEO",
+                  rating: feedback.overrideRating || 0,
+                  comment: feedback.overrideComment || "",
+                  overrideComment: feedback.overrideComment || "",
+                  approved: true,
+                  createdAt: feedback.createdAt
+                }}
+              />
+            ))}
+
+            {feedbackData.managerFeedback.length === 0 && 
+             feedbackData.ceoFeedback.length === 0 && (
+              <div className="col-span-2 text-center py-8 text-muted-foreground">
+                No feedback received yet.
+              </div>
+            )}
           </div>
         </section>
 
@@ -221,15 +246,22 @@ export default async function DashboardPage() {
   }
 }
 
-function FeedbackCard({ feedback }: { feedback: Feedback }) {
+function FeedbackCard({ feedback }: { 
+  feedback: Feedback & { createdAt: Date } 
+}) {
   return (
     <Card>
       <CardHeader className="bg-blue-50 dark:bg-gray-800">
         <div className="flex justify-between items-center">
           <CardTitle>{feedback.reviewer} Feedback</CardTitle>
-          <Badge variant={feedback.approved ? "default" : "outline"}>
-            {feedback.approved ? "Approved" : "Pending"}
-          </Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant={feedback.approved ? "default" : "outline"}>
+              {feedback.approved ? "Approved" : "Pending"}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {new Date(feedback.createdAt).toLocaleDateString()}
+            </span>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
