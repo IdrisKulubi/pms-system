@@ -22,6 +22,20 @@
       "when": 1739522113196,
       "tag": "0002_foamy_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1739528828498,
+      "tag": "0003_brief_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1739529613921,
+      "tag": "0004_friendly_felicia_hardy",
+      "breakpoints": true
     }
   ]
 }
